@@ -1,0 +1,276 @@
+
+import tkinter as tk
+from tkinter import messagebox
+
+# --- Data Structures ---
+
+class StudentNode:
+    def __init__(self, student_id, name, course):
+        self.student_id = student_id
+        self.name = name
+        self.course = course
+        self.next = None
+        self.left = None
+        self.right = None
+
+class StudentLinkedList:
+    def __init__(self):
+        self.head = None
+
+    def add_student(self, student_id, name, course):
+        if self.find_student(student_id):
+            return False
+        new_node = StudentNode(student_id, name, course)
+        new_node.next = self.head
+        self.head = new_node
+        return True
+
+    def find_student(self, student_id):
+        current = self.head
+        while current:
+            if current.student_id == student_id:
+                return current
+            current = current.next
+        return None
+
+    def delete_student(self, student_id):
+        current = self.head
+        prev = None
+        while current:
+            if current.student_id == student_id:
+                if prev:
+                    prev.next = current.next
+                else:
+                    self.head = current.next
+                return True
+            prev = current
+            current = current.next
+        return False
+
+    def to_list(self):
+        students = []
+        current = self.head
+        while current:
+            students.append(current)
+            current = current.next
+        return students
+
+    def sort_by_name(self):
+        if not self.head or not self.head.next:
+            return
+        swapped = True
+        while swapped:
+            swapped = False
+            prev = None
+            curr = self.head
+            while curr and curr.next:
+                nxt = curr.next
+                if curr.name.lower() > nxt.name.lower():
+                    swapped = True
+                    if prev:
+                        prev.next = nxt
+                    else:
+                        self.head = nxt
+                    curr.next = nxt.next
+                    nxt.next = curr
+                    prev = nxt
+                else:
+                    prev = curr
+                    curr = curr.next
+
+class RegistrationStack:
+    def __init__(self):
+        self.stack = []
+
+    def push(self, student):
+        self.stack.append(student)
+
+    def pop(self):
+        return self.stack.pop() if self.stack else None
+
+    def get_all(self):
+        return list(reversed(self.stack))
+
+class StudentBST:
+    def __init__(self):
+        self.root = None
+
+    def insert(self, student):
+        if self.root is None:
+            self.root = student
+        else:
+            self._insert(self.root, student)
+
+    def _insert(self, current, student):
+        if student.student_id < current.student_id:
+            if current.left is None:
+                current.left = student
+            else:
+                self._insert(current.left, student)
+        elif student.student_id > current.student_id:
+            if current.right is None:
+                current.right = student
+            else:
+                self._insert(current.right, student)
+
+    def search(self, student_id):
+        return self._search(self.root, student_id)
+
+    def _search(self, current, student_id):
+        if current is None:
+            return None
+        if current.student_id == student_id:
+            return current
+        elif student_id < current.student_id:
+            return self._search(current.left, student_id)
+        else:
+            return self._search(current.right, student_id)
+
+# --- Logic Handlers ---
+
+students_list = StudentLinkedList()
+registration_stack = RegistrationStack()
+student_bst = StudentBST()
+
+def register_student():
+    sid = entry_id.get().strip()
+    name = entry_name.get().strip()
+    course = entry_course.get().strip()
+
+    if not sid or not name or not course:
+        messagebox.showerror("Input Error", "All fields are required.")
+        return
+    if not sid.isdigit():
+        messagebox.showerror("Input Error", "Student ID must be numeric.")
+        return
+
+    sid_int = int(sid)
+    if students_list.find_student(sid_int):
+        messagebox.showerror("Duplicate ID", "Student ID already registered.")
+        return
+
+    new_student = StudentNode(sid_int, name, course)
+
+    students_list.add_student(sid_int, name, course)
+    registration_stack.push(new_student)
+    student_bst.insert(new_student)
+
+    messagebox.showinfo("Success", f"Student {name} registered.")
+    clear_entries()
+
+def clear_entries():
+    entry_id.delete(0, tk.END)
+    entry_name.delete(0, tk.END)
+    entry_course.delete(0, tk.END)
+
+def search_student():
+    sid = entry_search.get().strip()
+    if not sid.isdigit():
+        messagebox.showerror("Input Error", "Student ID must be numeric.")
+        return
+
+    sid_int = int(sid)
+    student = student_bst.search(sid_int)
+    if student:
+        messagebox.showinfo("Student Found", f"ID: {student.student_id}\nName: {student.name}\nCourse: {student.course}")
+    else:
+        messagebox.showinfo("Not Found", "Student ID not found.")
+
+def show_all_students():
+    students_list.sort_by_name()
+    students = students_list.to_list()
+    if not students:
+        messagebox.showinfo("Students", "No students registered.")
+        return
+    text = ""
+    for s in students:
+        text += f"ID: {s.student_id}, Name: {s.name}, Course: {s.course}\n"
+    messagebox.showinfo("All Students (Sorted by Name)", text)
+
+def show_registration_stack():
+    stack = registration_stack.get_all()
+    if not stack:
+        messagebox.showinfo("Stack", "No registrations yet.")
+        return
+    text = "Recent Registrations (LIFO):\n"
+    for s in stack:
+        text += f"ID: {s.student_id}, Name: {s.name}\n"
+    messagebox.showinfo("Registration Stack", text)
+
+def rebuild_bst():
+    global student_bst
+    student_bst = StudentBST()
+    for s in students_list.to_list():
+        student_bst.insert(s)
+
+def remove_from_stack(student_id):
+    registration_stack.stack = [s for s in registration_stack.stack if s.student_id != student_id]
+
+def delete_student():
+    sid = entry_delete.get().strip()
+    if not sid.isdigit():
+        messagebox.showerror("Input Error", "Student ID must be numeric.")
+        return
+
+    sid_int = int(sid)
+    success = students_list.delete_student(sid_int)
+    if success:
+        remove_from_stack(sid_int)
+        rebuild_bst()
+        messagebox.showinfo("Deleted", f"Student ID {sid_int} has been removed.")
+    else:
+        messagebox.showerror("Not Found", "Student not found.")
+
+# --- GUI ---
+
+root = tk.Tk()
+root.title("Student Registration System")
+
+frame_reg = tk.LabelFrame(root, text="Register Student")
+frame_reg.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+tk.Label(frame_reg, text="Student ID:").grid(row=0, column=0, sticky="e")
+entry_id = tk.Entry(frame_reg)
+entry_id.grid(row=0, column=1)
+
+tk.Label(frame_reg, text="Name:").grid(row=1, column=0, sticky="e")
+entry_name = tk.Entry(frame_reg)
+entry_name.grid(row=1, column=1)
+
+tk.Label(frame_reg, text="Course:").grid(row=2, column=0, sticky="e")
+entry_course = tk.Entry(frame_reg)
+entry_course.grid(row=2, column=1)
+
+btn_register = tk.Button(frame_reg, text="Register", command=register_student)
+btn_register.grid(row=3, column=0, columnspan=2, pady=5)
+
+frame_search = tk.LabelFrame(root, text="Search Student by ID")
+frame_search.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+
+tk.Label(frame_search, text="Student ID:").grid(row=0, column=0, sticky="e")
+entry_search = tk.Entry(frame_search)
+entry_search.grid(row=0, column=1)
+
+btn_search = tk.Button(frame_search, text="Search", command=search_student)
+btn_search.grid(row=1, column=0, columnspan=2, pady=5)
+
+frame_delete = tk.LabelFrame(root, text="Delete Student by ID")
+frame_delete.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
+
+tk.Label(frame_delete, text="Student ID:").grid(row=0, column=0, sticky="e")
+entry_delete = tk.Entry(frame_delete)
+entry_delete.grid(row=0, column=1)
+
+btn_delete = tk.Button(frame_delete, text="Delete", command=delete_student)
+btn_delete.grid(row=1, column=0, columnspan=2, pady=5)
+
+frame_info = tk.Frame(root)
+frame_info.grid(row=3, column=0, padx=10, pady=10, sticky="ew")
+
+btn_show_all = tk.Button(frame_info, text="Show All Students (Sorted)", command=show_all_students)
+btn_show_all.grid(row=0, column=0, padx=5, pady=5)
+
+btn_stack = tk.Button(frame_info, text="Show Registration History", command=show_registration_stack)
+btn_stack.grid(row=0, column=1, padx=5, pady=5)
+
+root.mainloop()
